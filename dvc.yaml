@@ -1,0 +1,33 @@
+stages:
+  prepare:
+    cmd: python src/prepare_data.py
+    deps:
+      - src/prepare_data.py
+      - data/raw/adult.csv
+    params:
+      - prepare
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+  train:
+    cmd: python src/train.py
+    deps:
+      - src/train.py
+      - data/processed/train.csv
+      - data/processed/test.csv
+    params:
+      - train
+    outs:
+      - models/model.pkl
+      - models/run_id.txt:
+          cache: false          # tiny; lives in Git -> every commit knows its MLflow run
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+      - src/evaluate.py
+      - models/model.pkl
+      - models/run_id.txt
+      - data/processed/test.csv
+    metrics:
+      - metrics.json:
+          cache: false          # small file stays in Git - read by `dvc metrics diff`
