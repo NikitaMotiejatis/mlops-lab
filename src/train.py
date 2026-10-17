@@ -98,7 +98,8 @@ def main() -> None:
         f1 = f1_score(y_test, preds)                                # F1 of the >50K class
 
         info = mlflow.sklearn.log_model(                            # model + environment files
-            model, name="model", input_example=x_train.head(3)
+            model, name="model", input_example=x_train.head(3),
+            skops_trusted_types=["sklearn.tree._tree.Tree"],        # RF trees we trained ourselves
         )
         mlflow.log_metric("accuracy", acc, model_id=info.model_id)  # metric <-> model link
         mlflow.log_metric("f1", f1, model_id=info.model_id)
