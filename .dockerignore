@@ -1,0 +1,17 @@
+.git
+.venv*
+**/__pycache__
+**/*.pyc
+.dvc
+data
+models
+mlruns
+mlartifacts
+mlflow.db
+docs
+k8s
+.env
+.env.*
+*.pem
+*.key
+*.log

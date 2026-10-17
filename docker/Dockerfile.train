@@ -1,0 +1,30 @@
+FROM python:3.12-slim-trixie AS base
+# Install available OS security fixes; scan the resulting image before publishing.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS builder
+COPY requirements-train.txt /tmp/
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --no-compile -r /tmp/requirements-train.txt
+
+FROM base AS runtime
+ARG GIT_COMMIT=unknown
+LABEL org.opencontainers.image.source="https://github.com/NikitaMotiejatis/mlops-lab" \
+      org.opencontainers.image.revision="${GIT_COMMIT}"
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    GIT_COMMIT=${GIT_COMMIT} \
+    GIT_PYTHON_REFRESH=quiet \
+    MLFLOW_EXPERIMENT_NAME=adult-income
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY params.yaml ./
+COPY src/ ./src/
+RUN useradd --create-home --uid 1000 mluser \
+    && mkdir -p data models \
+    && chown -R mluser:mluser /app
+USER mluser
+CMD ["sh", "-c", "python src/download_data.py && python src/prepare_data.py && python src/train.py && python src/evaluate.py"]
