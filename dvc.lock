@@ -45,17 +45,17 @@ stages:
         train:
           n_estimators: 300
           max_depth: 20
-          min_samples_leaf: 1
-          class_weight:
+          min_samples_leaf: 5
+          class_weight: balanced
           random_seed: 42
     outs:
     - path: models/model.pkl
       hash: md5
-      md5: 0b46aec529a62d7433a0ba8615bff367
-      size: 83833746
+      md5: 42e9ef781caad42690e4caebe3e3ab5c
+      size: 19993554
     - path: models/run_id.txt
       hash: md5
-      md5: b6838e1cd62700fc65dc3c1f72b5884f
+      md5: de61c459868c0df229761c0e92a95b0b
       size: 33
   evaluate:
     cmd: python src/evaluate.py
@@ -66,11 +66,11 @@ stages:
       size: 578058
     - path: models/model.pkl
       hash: md5
-      md5: 0b46aec529a62d7433a0ba8615bff367
-      size: 83833746
+      md5: 42e9ef781caad42690e4caebe3e3ab5c
+      size: 19993554
     - path: models/run_id.txt
       hash: md5
-      md5: b6838e1cd62700fc65dc3c1f72b5884f
+      md5: de61c459868c0df229761c0e92a95b0b
       size: 33
     - path: src/evaluate.py
       hash: md5
@@ -79,5 +79,5 @@ stages:
     outs:
     - path: metrics.json
       hash: md5
-      md5: 2118a6a9c6596b7747f1bf51523934fd
-      size: 164
+      md5: c4cac79feafede3d5345092189cd8f47
+      size: 165

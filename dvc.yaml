@@ -20,7 +20,7 @@ stages:
     outs:
       - models/model.pkl
       - models/run_id.txt:
-          cache: false          # tiny; lives in Git -> every commit knows its MLflow run
+          cache: false  
   evaluate:
     cmd: python src/evaluate.py
     deps:
@@ -30,4 +30,4 @@ stages:
       - data/processed/test.csv
     metrics:
       - metrics.json:
-          cache: false          # small file stays in Git - read by `dvc metrics diff`
+          cache: false
