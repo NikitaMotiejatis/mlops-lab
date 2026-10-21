@@ -30,7 +30,7 @@ DVC pipeline’as, MLflow serveris lokaliame Kubernetes klasteryje, versijuotas 
 | NFR-01 | Kokybė | Klasių atskyrimas | ROC-AUC ≥ 0,88 (test) | `metrics.json` | 0,907–0,913 |
 | NFR-02 | Kokybė | Mažumos klasės (>50K) aptikimas | F1 ≥ 0,65 | `metrics.json` | exp1 0,644 (nepasiekta) → exp3 0,681 |
 | NFR-03 | Našumas | Viso pipeline’o trukmė CPU | `dvc repro` ≤ 60 s | `time dvc repro` | ~15 s |
-| NFR-04 | Saugumas | Vaizdas be kritinių CVE, ne root | 0 CRITICAL (Trivy), UID ≠ 0 | `docs/trivy-train.txt`, `docker run … id` | <n> / 1000 |
+| NFR-04 | Saugumas | Vaizdas be kritinių CVE, ne root | 0 CRITICAL (Trivy), UID ≠ 0 | `docs/trivy-train.txt`, `docker run … id` | 0 CRITICAL / UID 1000 |
 | NFR-05 | Dydis | Mokymo vaizdo dydis | ≤ 700 MB (disk) | `docker images` | ~626 MB |
 
 ### 3.2 Eksperimentų sekimo, atkartojamumo ir infrastruktūros NFR (v1.1)

@@ -8,7 +8,7 @@ Docker, kind v0.33.0, kubectl v1.37, Python 3.12, (trivy, gh — vaizdo publikav
 
 ## Paleidimas nuo nulio
 ```bash
-git clone https://github.com/<owner>/mlops-u1.git && cd mlops-u1
+git clone https://github.com/NikitaMotiejatis/mlops-lab.git && cd mlops-lab
 python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 dvc pull || python src/download_data.py      # duomenys (tas pats md5: c214b838...)
 
@@ -28,13 +28,13 @@ Atsarginis variantas: `kubectl port-forward -n mlops-u1 svc/mlflow 5000:5000`.
 ## Kur žiūrėti rezultatus
 - MLflow UI → eksperimentas **adult-income** (run’ai, metrikos, modeliai).
 - `metrics.json`, `dvc metrics diff`, `dvc params diff`.
-- Docker vaizdas: `ghcr.io/nikitamotiejatis/mlops-lab-train:sha-747232bd`; dydis ir Trivy — `docs/image-size.md`, `docs/trivy-train.txt`.
+- Docker vaizdas: `ghcr.io/nikitamotiejatis/mlops-u1-train:sha-b31d81c2`; dydis ir Trivy — `docs/image-size.md`, `docs/trivy-train.txt`.
 
 ## Eksperimentai ir reprodukcija
 ```bash
 # pakeiskite params.yaml -> dvc repro -> git commit params.yaml dvc.lock metrics.json models/run_id.txt
 time python reproduce.py <run_id>            # < 2 min, Δaccuracy ≤ 0,005
-docker run --rm --network host -e MLFLOW_TRACKING_URI=http://localhost:5000 ghcr.io/nikitamotiejatis/mlops-lab-train:sha-747232bd
+docker run --rm --network host -e MLFLOW_TRACKING_URI=http://localhost:5000 ghcr.io/nikitamotiejatis/mlops-u1-train:sha-b31d81c2
 ```
 
 ## Struktūra
