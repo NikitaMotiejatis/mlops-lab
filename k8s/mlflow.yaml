@@ -27,16 +27,22 @@ spec:
     spec:
       containers:
         - name: mlflow
-          image: mlflow-server:v3.15.2-pg      
+          image: mlflow-server:v3.15.2-pg-auth
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
                 name: mlflow-db
           env:
-            - name: MLFLOW_SERVER_ENABLE_JOB_EXECUTION   
+            - name: MLFLOW_SERVER_ENABLE_JOB_EXECUTION
               value: "false"
+            - name: MLFLOW_AUTH_CONFIG_PATH
+              value: /etc/mlflow-auth/basic_auth.ini
+            - name: MLFLOW_FLASK_SERVER_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: mlflow-auth, key: MLFLOW_FLASK_SERVER_SECRET_KEY}
           command: ["mlflow", "server"]
           args:
+            - --app-name=basic-auth
             - --host=0.0.0.0
             - --port=5000
             - --workers=2
@@ -48,6 +54,9 @@ spec:
           volumeMounts:
             - name: artifacts
               mountPath: /mlartifacts
+            - name: auth
+              mountPath: /etc/mlflow-auth
+              readOnly: true
           readinessProbe:
             httpGet: {path: /health, port: 5000}
             initialDelaySeconds: 10
@@ -63,6 +72,11 @@ spec:
         - name: artifacts
           persistentVolumeClaim:
             claimName: mlflow-artifacts
+        - name: auth
+          secret:
+            secretName: mlflow-auth
+            items:
+              - {key: basic_auth.ini, path: basic_auth.ini}
 ---
 apiVersion: v1
 kind: Service
@@ -75,4 +89,4 @@ spec:
   ports:
     - port: 5000
       targetPort: 5000
-      nodePort: 30500 
+      nodePort: 30500
