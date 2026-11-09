@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: train-
+  namespace: mlops-u1
+  labels: {app: train}
+spec:
+  backoffLimit: 0                  # a failed training run is a result, not something to retry
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 86400   # finished Jobs are cleaned up after a day
+  template:
+    metadata:
+      labels: {app: train}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: train
+          image: ghcr.io/nikitamotiejatis/mlops-lab-train:sha-30117dcd
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: mlflow-client          # MLFLOW_TRACKING_URI + USERNAME + PASSWORD
+          env:
+            - name: MLFLOW_EXPERIMENT_NAME
+              value: adult-income
+          volumeMounts:
+            - name: params
+              mountPath: /app/params.yaml
+              subPath: params.yaml
+              readOnly: true
+          resources:
+            requests: {cpu: "1", memory: 1Gi}
+            limits: {cpu: "2", memory: 2Gi}
+      volumes:
+        - name: params
+          configMap:
+            name: train-params
