@@ -1,0 +1,153 @@
+name: ml-pipeline
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**.md"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ml-pipeline            # one deployment at a time
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_PREFIX: ghcr.io/nikitamotiejatis/mlops-lab
+  MLFLOW_TRACKING_URI: http://localhost:5000
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.17.1
+      - run: ruff check src tests scripts reproduce.py
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -v
+
+  train:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, mlops-kind]
+    outputs:
+      version: ${{ steps.register.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python environment
+        run: |
+          python3 -m venv .venv-ci
+          .venv-ci/bin/pip install -q -r requirements.txt
+          echo "$PWD/.venv-ci/bin" >> "$GITHUB_PATH"
+      - name: MLflow login (read from the cluster Secret, masked in the log)
+        run: |
+          eval "$(bash scripts/mlflow-env.sh)"
+          echo "::add-mask::$MLFLOW_TRACKING_PASSWORD"
+          echo "MLFLOW_TRACKING_USERNAME=$MLFLOW_TRACKING_USERNAME" >> "$GITHUB_ENV"
+          echo "MLFLOW_TRACKING_PASSWORD=$MLFLOW_TRACKING_PASSWORD" >> "$GITHUB_ENV"
+      - name: Data from the DVC remote (a directory on this machine)
+        run: dvc pull data/raw/adult.csv.dvc
+      - name: dvc repro (clean checkout -> prepare, train, evaluate all run; new MLflow run)
+        run: dvc repro
+      - run: dvc push
+      - name: Register the model as @candidate
+        id: register
+        run: python scripts/registry.py register --run-id "$(cat models/run_id.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-outputs
+          path: |
+            metrics.json
+            dvc.lock
+            models/run_id.txt
+
+  gate:
+    needs: train
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: pipeline-outputs
+      - run: pip install pyyaml==6.0.3
+      - name: Quality gate (metric and threshold from params.yaml -> gate)
+        run: python scripts/check_gate.py
+
+  build-push:
+    needs: gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image: [train, serve]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push ${{ matrix.image }}
+        run: |
+          SHA=${GITHUB_SHA::8}
+          IMAGE=$IMAGE_PREFIX-${{ matrix.image }}:sha-$SHA
+          docker build -f docker/Dockerfile.${{ matrix.image }} --build-arg GIT_COMMIT=$SHA -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "pushed \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: [train, build-push]
+    runs-on: [self-hosted, mlops-kind]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: pipeline-outputs
+      - name: Python environment (MLflow client only)
+        run: |
+          python3 -m venv .venv-ci
+          .venv-ci/bin/pip install -q mlflow-skinny==3.15.2
+          echo "$PWD/.venv-ci/bin" >> "$GITHUB_PATH"
+      - name: MLflow login (read from the cluster Secret, masked in the log)
+        run: |
+          eval "$(bash scripts/mlflow-env.sh)"
+          echo "::add-mask::$MLFLOW_TRACKING_PASSWORD"
+          echo "MLFLOW_TRACKING_USERNAME=$MLFLOW_TRACKING_USERNAME" >> "$GITHUB_ENV"
+          echo "MLFLOW_TRACKING_PASSWORD=$MLFLOW_TRACKING_PASSWORD" >> "$GITHUB_ENV"
+      - name: Update the manifests in Git (image tag + model version)
+        env:
+          VERSION: ${{ needs.train.outputs.version }}
+        run: |
+          TAG=sha-${GITHUB_SHA::8}
+          sed -i -E "s|(image: ghcr.io/[^/]+/mlops-lab-serve:).*|\1$TAG|" k8s/inference.yaml
+          sed -i -E "s|(mlops/model-version: )\"[0-9]+\"|\1\"$VERSION\"|" k8s/inference.yaml
+          sed -i -E "s|(image: ghcr.io/[^/]+/mlops-lab-train:).*|\1$TAG|" k8s/train-job.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/inference.yaml k8s/train-job.yaml metrics.json dvc.lock models/run_id.txt
+          git commit -m "cd: deploy $TAG model v$VERSION [skip ci]"
+          git fetch origin main && git rebase origin/main
+          git push origin HEAD:main
+          echo "deployed \`$TAG\` with adult-income **v$VERSION** (commit $(git rev-parse --short HEAD))" >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy (@champion -> version, kubectl apply, rollout, smoke test)
+        run: bash scripts/deploy.sh

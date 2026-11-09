@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adult-api-config
+  namespace: mlops-u1
+data:
+  MODEL_NAME: adult-income
+  MODEL_ALIAS: champion
+  PREDICT_N_JOBS: "1"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adult-api
+  namespace: mlops-u1
+  labels: {app: adult-api}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5          # old ReplicaSets kept for `kubectl rollout undo`
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}   # zero downtime: new pod Ready before an old one stops
+  selector:
+    matchLabels: {app: adult-api}
+  template:
+    metadata:
+      labels: {app: adult-api}
+      annotations:
+        mlops/model-version: "1"   # registry version for @champion; a change restarts the pods
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/nikitamotiejatis/mlops-lab-serve:sha-833722d5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: adult-api-config
+            - secretRef:
+                name: mlflow-client
+          startupProbe:              # model download + load: allow up to 2 min
+            httpGet: {path: /health, port: 8080}
+            periodSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /health, port: 8080}
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: {path: /health, port: 8080}
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests: {cpu: 250m, memory: 384Mi}
+            limits: {cpu: "1", memory: 1Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adult-api
+  namespace: mlops-u1
+spec:
+  selector: {app: adult-api}
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
