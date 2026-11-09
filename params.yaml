@@ -3,9 +3,9 @@ prepare:
   seed: 42
 train:
   n_estimators: 300
-  max_depth: 15
+  max_depth: 2
   min_samples_leaf: 2
-  class_weight: balanced
+  class_weight: null
   random_seed: 42
   step_trees: 25
 tune:
