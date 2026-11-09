@@ -12,3 +12,5 @@ mlartifacts/
 .pytest_cache/
 .ruff_cache/
 .venv-ci/
+
+actions-runner/*
