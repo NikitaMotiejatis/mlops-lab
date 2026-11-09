@@ -15,7 +15,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: train
-          image: ghcr.io/nikitamotiejatis/mlops-lab-train:sha-6341971e
+          image: ghcr.io/nikitamotiejatis/mlops-lab-train:sha-e48de9ed
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
