@@ -1,0 +1,16 @@
+{
+  "url": "http://adult-api",
+  "requests": 1000,
+  "concurrency": 50,
+  "errors": 0,
+  "model_version": "1",
+  "image_commit": "833722d5",
+  "p50_ms": 571.1,
+  "p95_ms": 787.3,
+  "p99_ms": 831.7,
+  "max_ms": 853.6,
+  "mean_ms": 561.9,
+  "throughput_rps": 85.6,
+  "wall_s": 11.68,
+  "measured_at": "2026-11-09 15:07:03"
+}
