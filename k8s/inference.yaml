@@ -26,11 +26,11 @@ spec:
     metadata:
       labels: {app: adult-api}
       annotations:
-        mlops/model-version: "3"   # registry version for @champion; a change restarts the pods
+        mlops/model-version: "6"   # registry version for @champion; a change restarts the pods
     spec:
       containers:
         - name: api
-          image: ghcr.io/nikitamotiejatis/mlops-lab-serve:sha-6341971e
+          image: ghcr.io/nikitamotiejatis/mlops-lab-serve:sha-362b8091
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
